@@ -1,0 +1,1001 @@
+<project name="Sample usage of Salesforce Ant tasks" basedir="." default="help" 
+   xmlns:sf="antlib:com.salesforce"    
+   xmlns:zd="zipdiff.ant.ZipDiffTask" 
+   xmlns:ac="net.sf.antcontrib" 
+   xmlns:atl="ise.antelope.tasks" 
+   xmlns:xp="com.oopsconsultancy.xmltask.ant.XmlTask" 
+   xmlns:tmw="com.tmw.ant.SDFC"  
+   >
+
+	<property file="build.properties"/>
+	<property environment="env"/>
+
+	<!--  Defind required jar-->
+	<path id="taskDependencies">
+		<!--  Salesforce jar-->
+		<pathelement location="./sflibrary/jars/ant-salesforce.jar" /> 	
+		<!--  Antcontrib jar-->
+		<pathelement location="./sflibrary/jars/ant-contrib-1.0b3.jar"/>		
+		<!--  Antelope jar-->
+		<pathelement location="./sflibrary/jars/antelopetasks_3.5.3.jar"/>			
+		<!--  zipdiff jar-->		
+		<pathelement location="./sflibrary/jars/zipdiff.jar"/>		
+		<!--  xmlparser jar-->
+		<pathelement location="./sflibrary/jars/xmltask.jar"/>	
+		<!--  Custom Salesforce Helper jar-->
+		<pathelement location="./sflibrary/jars/tmw_sdfc_ant.jar"/>	
+	</path>
+
+	<!--  Define Salesforce Ant task  -->	
+	<taskdef resource="com/salesforce/antlib.xml"  uri="antlib:com.salesforce">
+		<classpath refid="taskDependencies"/>
+	</taskdef>		
+	<!--  Define Antcontrib Ant task  -->	
+	<taskdef resource="net/sf/antcontrib/antlib.xml" uri="net.sf.antcontrib" >
+		<classpath refid="taskDependencies"/>
+	</taskdef>		
+	<!--  Define Antelope Ant task  -->	
+	<taskdef resource="ise/antelope/tasks/antlib.xml" uri="ise.antelope.tasks" >
+		<classpath refid="taskDependencies"/>
+	</taskdef>
+	<!--  Define zipdiff Ant task  -->	
+	<taskdef name="zipdiff" classname="zipdiff.ant.ZipDiffTask" uri="zipdiff.ant.ZipDiffTask">
+		<classpath refid="taskDependencies"/>
+	</taskdef>
+	<!--  Define xmltask Ant task -->
+	<taskdef name="xmltask" classname="com.oopsconsultancy.xmltask.ant.XmlTask" uri="com.oopsconsultancy.xmltask.ant.XmlTask">
+		<classpath refid="taskDependencies"/>
+	</taskdef>
+	<!--  Custom Ant task for various deployment helper functions -->
+	<taskdef resource="com/tmw/ant/SDFC/antlib.xml" uri="com.tmw.ant.SDFC" >
+		<classpath refid="taskDependencies"/>
+	</taskdef>	
+
+	<!-- ******************************************************* -->
+	<!-- working test area										 -->
+	<!-- ******************************************************* -->
+
+	
+	
+	<!-- ******************************************************* -->
+	<!-- List Metadata											 -->
+	<!-- ******************************************************* -->
+
+	<!-- Retrieve the information of all items of a particular metadata type -->
+	<target name="listMetadata"  depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfretrieveMetadataTypeset"
+	   description="Create log of elements in metadata type" >	
+		<mkdir dir="${sf.listRetrieveResultsLogPath}/listMetadata"/>
+		<sf:listMetadata username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" metadataType="${sf.retrieveMetadataType}" 
+	   resultFilePath="${sf.listRetrieveResultsLogPath}/listMetadata/${sf.env}_listMetadata_${current.time}.log" />
+	</target>
+
+	<!-- Retrieve the information of all items of a particular metadata type -->
+	<target name="folderListMetadata"  depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfretrieveMetadataTypeset,sflistfolderset"
+	   description="Create log of elements in metadata type. Use with metadata types with folder.  ie reports email templates" >	
+		<mkdir dir="${sf.listRetrieveResultsLogPath}/listMetadata"/>
+		<sf:listMetadata username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" metadataType="${sf.retrieveMetadataType}"  folder="${sf.listfolder}"
+	   resultFilePath="${sf.listRetrieveResultsLogPath}/listMetadata/${sf.env}_listMetadata_${current.time}.log" />
+	</target>	
+	
+	<!-- Retrieve the information on all supported metadata type -->
+	<target name="describeMetadata"  depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset"
+	   description="Create report from instanse of current Metadata" >	
+		<mkdir dir="${sf.listRetrieveResultsLogPath}/describeMetadata"/>
+		<sf:describeMetadata username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}"  
+		resultFilePath="${sf.listRetrieveResultsLogPath}/describeMetadata/${sf.env}_describeMetadata_${current.time}.log" />
+	</target>	
+
+	<!-- Retrieve the information on all supported metadata type in XML format -->
+	<target name="buildSDFCMeta"
+  	   depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset"
+	   description="Create SDFCMetadata from environment describe call" >		   
+	    <property name="buildSDFCMetaPath" value= "${sf.listRetrieveResultsLogPath}/buildSDFCMeta"/>
+	    <property name="sdfcWorking" value="${buildSDFCMetaPath}/working"/>
+		<delete includeemptydirs="true" dir="${sdfcWorking}" quiet="true" />		
+		<mkdir dir="${sdfcWorking}"/>
+		<tmw:buildSDFCMetaFromListMeta 
+		   SFDCMetaWorkingPath="${sdfcWorking}"		   
+		   SFDCMetaOutFilePath="${buildSDFCMetaPath}/${sf.env}_SDFCMeta_${current.time}.xml"
+		   username="${sf.username}" password="${sf.password}"
+		   env="${sf.env}"  serverurl="${sf.serverurl}"
+		/>
+       <delete includeemptydirs="true" dir="${sdfcWorking}" quiet="true" />		
+	</target>
+
+    <target name="buildPackageXML"
+  	   depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset"
+	   description="Create packageXML from SDFC Metadata" >
+	    <property name="buildPackagePath" value= "${sf.listRetrieveResultsLogPath}/buildpackageXML"/>
+	    <property name="sdfcWorking" value="${buildPackagePath}/working"/>
+		<delete includeemptydirs="true" dir="${sdfcWorking}" quiet="true" />
+		<mkdir dir="${sdfcWorking}"/>
+		<tmw:buildPackageXML
+		   username="${sf.username}" password="${sf.password}"
+		   env="${sf.env}"  serverurl="${sf.serverurl}"
+		   SFDCMetaWorkingPath="${sdfcWorking}"		   		   
+		   PackageXMLOutFilePath="${buildPackagePath}/${sf.env}_packageXML_${current.time}.xml"
+		   version="${sf.version}"
+		/>
+	    <delete includeemptydirs="true" dir="${sdfcWorking}" quiet="true" />
+	</target>	
+	
+	<!-- ******************************************************* -->
+	<!-- COMPARE							  	                 -->
+	<!-- ******************************************************* -->	
+
+	<target name="compareZip" depends="currenttimeset,zip1set,zip2set"
+	   description="Compare two zip files and generate report" >
+		<script language="javascript">var logger = project.getBuildListeners( ).firstElement( ); logger.setMessageOutputLevel( 1 );</script>	   
+		<zd:zipdiff filename2="${sf.compareLocation}/${sf.zip1}" 
+			filename1="${sf.compareLocation}/${sf.zip2}"
+			ignoreTimestamps="true"
+			compareCRCValues="true"
+			destfile="${sf.compareLocation}/comparezip_${current.time}_temp.xml">
+		</zd:zipdiff>
+		<xslt in="${sf.compareLocation}/comparezip_${current.time}_temp.xml" 
+           out="${sf.compareLocation}/comparezip_${current.time}.xml"
+             style="${sflibrary.files}/sforcecomparesort.xslt">
+		</xslt>		
+		<delete file="${sf.compareLocation}/comparezip_${current.time}_temp.xml"/>
+	</target>	
+	
+	<target name="compareEnv"  depends="currenttimeset,sfenvSRCset,sfusernameSRCset,sfpasswordSRCset,sfenvDSTset,sfusernameDSTset,sfpasswordDSTset" 
+	   description="Compare two SF env and generate a report and difference package" >		  		
+		<property name="compareWorking" value="${sf.compareLocation}/working"/>
+		<property name="compareWorkingSRC" value="${compareWorking}/src"/>		   
+		<property name="compareWorkingDST" value="${compareWorking}/dst"/>	
+		<property name="compareWorkingPACK" value="${compareWorking}/package"/>	
+	 	<delete includeemptydirs="true" dir="${compareWorking}" quiet="true" /> 
+		<mkdir dir="${compareWorking}"/>
+		<mkdir dir="${compareWorkingSRC}"/>
+		<mkdir dir="${compareWorkingDST}"/>
+		<mkdir dir="${compareWorkingPACK}"/>
+		<ac:antcallback target="computeSFServerURL" return="sf.serverurlSRC" >
+			<param name="sfenvparam1" value="${sf.envSRC}" />
+			<param name="sfenvparam2" value="sf.serverurlSRC" />
+		</ac:antcallback>		 
+		<ac:antcallback target="computeSFServerURL" return="sf.serverurlDST" >
+			<param name="sfenvparam1" value="${sf.envDST}" />
+			<param name="sfenvparam2" value="sf.serverurlDST" />
+		</ac:antcallback>	
+		<tmw:compareSDFCEnv 
+		   version="${sf.version}"
+		   SFDCMetaWorkingPath="${compareWorking}"	
+		   usernameSRC="${sf.usernameSRC}" passwordSRC="${sf.passwordSRC}" envSRC="${sf.envSRC}"  serverurlSRC="${sf.serverurlSRC}"		   
+		   usernameDST="${sf.usernameDST}" passwordDST="${sf.passwordDST}" envDST="${sf.envDST}"  serverurlDST="${sf.serverurlDST}"	   		   
+		/> 
+    	 
+	    <zip destfile="${sf.compareLocation}/package_${sf.envSRC}_to_${sf.envDST}_${current.time}.zip" basedir="${compareWorkingPACK}"/>					
+		<copy todir="${sf.compareLocation}" includeemptydirs="false" quiet="true"> 
+			<fileset dir="${compareWorking}">	  
+			    <include name="compare1.xml" />
+            </fileset>	 			
+			<mapper type="glob" from="*" to="compareenv_${sf.envSRC}_to_${sf.envDST}_${current.time}_style1.xml"/>
+		</copy>			
+		<copy todir="${sf.compareLocation}" includeemptydirs="false" quiet="true"> 
+			<fileset dir="${compareWorking}">	  
+			    <include name="compare2.xml" />
+            </fileset>	 			
+			<mapper type="glob" from="*" to="compareenv_${sf.envSRC}_to_${sf.envDST}_${current.time}_style2.xml"/>
+		</copy>	
+		
+    	<delete includeemptydirs="true" dir="${compareWorking}" quiet="true" />  
+	</target>	
+
+
+	<!-- ******************************************************* -->
+	<!-- RETRIEVE											     -->
+	<!-- ******************************************************* -->
+
+
+	<target name="retrieveBackup" depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset"
+	   description="Backup the destination instance" >
+		<!-- Generate environment package XML -->
+		<property name="sdfcWorking" value="${sf.retrievedBackupLocation}/working"/>
+		<delete includeemptydirs="true" dir="${sdfcWorking}" quiet="true" />
+		<mkdir dir="${sdfcWorking}"/>
+		<tmw:buildPackageXML
+		   username="${sf.username}" password="${sf.password}"
+		   env="${sf.env}"  serverurl="${sf.serverurl}"
+		   SFDCMetaWorkingPath="${sdfcWorking}"		   		   
+		   PackageXMLOutFilePath="${sdfcWorking}/${sf.env}_packageXML_${current.time}.xml"
+		   version="${sf.version}"
+		/>		
+		<!-- Retrieve the contents into another directory -->
+		<property name="sfResultsFile" value="${sdfcWorking}/${sf.env}_backup_${current.time}"/>
+		<mkdir dir="${sfResultsFile}"/>
+		<sf:retrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}"
+     	  retrieveTarget="${sfResultsFile}" unpackaged="${sdfcWorking}/${sf.env}_packageXML_${current.time}.xml" 
+          unzip="false"		  />
+		<move todir="${sf.retrievedBackupLocation}" includeemptydirs="false"> 
+			<fileset dir="${sfResultsFile}"/>	   
+			<mapper type="glob" from="*.zip" to="${sf.env}_backup_${current.time}.zip"/>
+		</move>	
+		<delete includeemptydirs="true" dir="${sdfcWorking}" quiet="true" />
+	</target>		
+
+	<!-- Retrieve an unpackaged set of metadata from your org -->
+	<!-- The file unpackaged/package.xml lists what is to be retrieved -->
+	<target name="retrieveCode" depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset"
+	   description="Create a copy of code from environment based on package.xml" >		
+		<property name="sfResultsFile" value="${sf.retrievedLocation}/${sf.env}_unpackaged_${current.time}"/>
+		<mkdir dir="${sfResultsFile}"/>
+		<!-- Retrieve the contents into another directory -->
+		<sf:retrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" retrieveTarget="${sfResultsFile}" unpackaged="${sf.retrievedLocation}/package.xml" />
+		<!--  add unzip="false" above to sf:retieve  if you want salesfore to zip style  -->	  
+		<antcall target="zipResult"  >
+			<param name="zipPathParam" value="${sfResultsFile}" />
+		</antcall>	  	  
+	</target>
+
+	
+	<!-- Retrieve all the items of a particular metadata type -->
+	<target name="retrieveBulk"  depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfretrieveMetadataTypeset"
+	   description="Create a copy of code from environment component request" >		
+		<property name="sfResultsFile" value="${sf.retrievedBulkLocation}/${sf.env}_bulk_${current.time}"/>
+		<mkdir dir="${sfResultsFile}"/>      
+		<sf:bulkRetrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" metadataType="${sf.retrieveMetadataType}" retrieveTarget="${sfResultsFile}"/>
+		<!--  add unzip="false" above to sf:retieve  if you want salesfore to zip style  -->	  
+		<antcall target="zipResult"  >
+			<param name="zipPathParam" value="${sfResultsFile}" />
+		</antcall>		  
+	</target>
+
+
+	<!-- Retrieve metadata for all the packages specified under packageNames -->
+	<target name="retrievePkgs"  depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset"
+	   description="Create a copy of code from environment package request" >	
+		<property name="sfResultsFile" value="${sf.retrievedLocation}/${sf.env}_packaged_${current.time}"/>
+		<mkdir dir="${sfResultsFile}"/>  	 
+		<sf:retrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" retrieveTarget="${sfResultsFile}" packageNames="${sf.retrievePkgName}"/>
+		<!--  add unzip="false" above to sf:retieve  if you want salesfore to zip style  -->	  
+		<antcall target="zipResult"  >
+			<param name="zipPathParam" value="${sfResultsFile}" />
+		</antcall>		  
+	</target>
+
+
+	<!-- ******************************************************* -->
+	<!-- DEPLOY											         -->
+	<!-- ******************************************************* -->
+
+
+	<!-- Shows check only; never actually saves to the server -->
+	<target name="deployCodeCheck"  depends="sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfdeployNameset"
+	   description="This deploy without saving and check if it compiles" >
+		<ac:if>			
+			<contains string="${sf.deployName}" substring=".ZIP"/>			
+			<ac:then>
+				<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" zipFile="${sf.deployRootLocation}/${sf.deployName}" checkOnly="true"/>
+			</ac:then>
+			<ac:else>
+				<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="${sf.deployRootLocation}/${sf.deployName}" checkOnly="true"/>
+			</ac:else>
+		</ac:if>	  		
+	</target>
+
+	<!-- Shows deploying code & running tests for code in directory -->
+	<target name="deployCodeTestPartialCheck"  depends="sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfdeployNameset,sftest"
+	   description="This deploy without saving and run specified test classes" >		
+		<!-- Upload the contents of the "codepkg" directory, running the tests for specific classes -->
+		<ac:if>			
+			<contains string="${sf.deployName}" substring=".ZIP"/>			
+			<ac:then>
+				<ac:for list="${sf.test}" param="currtest" delimiter=",">
+					<sequential>        
+						<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" zipFile="${sf.deployRootLocation}/${sf.deployName}" logType="Debugonly" checkOnly="true" testLevel="RunSpecifiedTests">
+							<runTest>@{currtest}</runTest>  
+						</sf:deploy>
+					</sequential>
+				</ac:for>
+			</ac:then>
+			<ac:else>
+				<ac:for list="${sf.test}" param="currtest" delimiter=",">
+					<sequential>        
+						<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="${sf.deployRootLocation}/${sf.deployName}" logType="Debugonly" checkOnly="true" testLevel="RunSpecifiedTests" >
+							<runTest>@{currtest}</runTest>  
+						</sf:deploy>
+					</sequential>
+				</ac:for>
+			</ac:else>
+		</ac:if>		
+
+	</target>	
+
+	<!-- Shows check only. Runs all tests with logging. -->
+	<target name="deployCodeTestCheck" depends="sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfdeployNameset"
+	   description="This deploy without saving and run all test classes" >
+		<!-- Upload the contents of the "codepkg" package, running all tests -->
+		<ac:if>			
+			<contains string="${sf.deployName}" substring=".ZIP"/>			
+			<ac:then>
+				<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" zipFile="${sf.deployRootLocation}/${sf.deployName}" runAllTests="true" logType="Debugonly" checkOnly="true"/>
+			</ac:then>
+			<ac:else>
+				<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="${sf.deployRootLocation}/${sf.deployName}" runAllTests="true" logType="Debugonly" checkOnly="true"/>
+			</ac:else>
+		</ac:if>				
+	</target>
+
+
+	<!-- Deploy the unpackaged set of metadata  -->
+	<target name="deployCode" depends="sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfdeployNameset"
+	   description="This will deploy all the package code into the destination instance." >
+		<ac:if>			
+			<contains string="${sf.deployName}" substring=".ZIP"/>			
+			<ac:then>
+				<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" zipFile="${sf.deployRootLocation}/${sf.deployName}" rollbackOnError="true"/>
+			</ac:then>
+			<ac:else>
+				<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="${sf.deployRootLocation}/${sf.deployName}" rollbackOnError="true"/>
+			</ac:else>
+		</ac:if>	   		
+	</target>	
+
+
+		<!-- Deploy the unpackaged set of metadata  -->
+	<target name="deployCodeForce" depends="sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfdeployNameset"
+	   description="This will deploy all the package code into the destination instance. Will force deploy and overwrite any code that compiles. Ignores test results." >
+		<ac:if>			
+			<contains string="${sf.deployName}" substring=".ZIP"/>			
+			<ac:then>
+				<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" zipFile="${sf.deployRootLocation}/${sf.deployName}" rollbackOnError="false"/>
+			</ac:then>
+			<ac:else>
+				<sf:deploy username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}" deployRoot="${sf.deployRootLocation}/${sf.deployName}" rollbackOnError="false"/>
+			</ac:else>
+		</ac:if>	   		
+	</target>	
+	
+
+	<!-- ******************************************************* -->
+	<!-- UNDEPLOY DELETE								         -->
+	<!-- ******************************************************* -->	
+
+	<!-- Shows removing code; only succeeds if done after deployCode -->
+	<!--  !!!!Disabled fro safety!!!! 
+    <target name="undeployCode"  depends="sfenvset,sfserverurlset,sfusernameset,sfpasswordset,sfdeployNameset"
+	   description="Remove code; only succeeds if done after deployCode" >             
+    </target>	
+	-->
+
+	<!-- ******************************************************* -->
+	<!-- Build Structure Clean  								 -->
+	<!-- ******************************************************* -->
+	<target name="buildClean"  
+	   description="Creates clean Build structure. cleans all directories" >	   
+		  
+		  <mkdir dir="${sf.listRetrieveResultsLogPath}/describeMetadata"/>	
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.listRetrieveResultsLogPath}/describeMetadata">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete> 		  
+          
+		  <mkdir dir="${sf.listRetrieveResultsLogPath}/buildSDFCMeta"/>	
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.listRetrieveResultsLogPath}/buildSDFCMeta">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete> 		  
+
+		  <mkdir dir="${sf.listRetrieveResultsLogPath}/listMetadata"/>          
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.listRetrieveResultsLogPath}/listMetadata">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete> 	
+          
+		  <mkdir dir="${sf.listRetrieveResultsLogPath}/buildpackageXML"/>	
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.listRetrieveResultsLogPath}/buildpackageXML">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete> 		  		  
+
+          <mkdir dir="${sf.compareLocation}"/>	          
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.compareLocation}">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete>		  
+          
+		  <mkdir dir="${sf.retrievedLocation}"/>
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.retrievedLocation}">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete> 		  
+          
+		  <mkdir dir="${sf.retrievedBackupLocation}"/>
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.retrievedBackupLocation}">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete>           			  
+          
+		  <mkdir dir="${sf.retrievedBulkLocation}"/>
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.retrievedBulkLocation}">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete> 		  	
+		  
+		  <mkdir dir="${sf.deployRootLocation}"/>
+		  <delete includeEmptyDirs="true"> 
+		     <fileset dir="${sf.deployRootLocation}">
+			   <include name="**/*"/>
+			 </fileset>
+		  </delete> 		  	
+    </target>
+	
+	
+	
+	<!-- ******************************************************* -->
+	<!-- Helper	 Targets  - DO NOT EDIT BELOW SECTION	         -->
+	<!-- ******************************************************* -->	
+
+	<target name="help" description="SF Project help" >
+		<echo>
+         Run one of the following commands for further assistance:  
+         "ant -p" OR  "ant -projecthelp"
+         You can also read the README.TXT file for more information.
+		</echo>
+	</target>
+
+	<description>
+		<![CDATA[
+---------------------------------------------   
+SalesForce (Call Center) ANT Deployment Guide
+---------------------------------------------
+This build helps deploy changes to different SF instanses based on login.
+ 
+Syntax:
+-------
+ANT  -Dsf.env=<value> -Dsf.username=<value> -Dsf.password=<value>  <TARGET>  <OTHER OPTIONAL/REQUIRED VALUES>
+
+Example:
+--------
+ant  -Dsf.env="DEV" -Dsf.username="email@test.com.dev" -Dsf.password="XXXXXXX"    listMetadata
+
+]]>
+	</description>
+
+	
+	<scriptdef language="javascript" name="upper">
+		<attribute name="string" /> 
+		<attribute name="to" />
+			project.setProperty( attributes.get( "to" ), attributes.get( "string" ).toUpperCase() );
+	</scriptdef>
+
+	
+	 <target name="mkDirQuiet">
+	    <script language="javascript">var logger = project.getBuildListeners( ).firstElement( );     logger.setMessageOutputLevel( 0 );</script>
+	  <mkdir dir="${mkDirQuietParam}"/>	
+	</target>
+
+	<target name="currenttimeset">
+		<tstamp>
+			<format property="current.time" pattern="yyyy_MM_dd_HHmm"/>
+		</tstamp> 
+	</target>
+
+	<target name="sfdeployNameset">	 
+		<condition property="sf.deployName.set" else="false">
+			<isset property="sf.deployName"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.deployName.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.deployName  (Folder name or zip file name containing package) NO SPACES ALLOWED:" addProperty="sf.deployName"/>
+			</ac:then>			
+		</ac:if>
+		<ac:if>
+			<or>
+				<not>
+					<length string="${sf.deployName}" trim="true" when="greater" length="0" />
+				</not>
+				<contains string="${sf.deployName}" substring=" "/>
+			</or>
+			<ac:then>
+				<fail message="-Dsf.deployName parameter is required and cannot be empty and cannot contain spaces"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.deployName}" property="sf.deployName">
+			<atl:uppercase/>
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+	
+	<target name="sftest">	 
+		<condition property="sf.test.set" else="false">
+			<isset property="sf.test"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.test.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.test  (Comma Delimited Class Test names NO SPACES ALLOWED):" addProperty="sf.test"/>
+			</ac:then>			
+		</ac:if>
+		<ac:if>
+			<or>
+				<not>
+					<length string="${sf.test}" trim="true" when="greater" length="0" />
+				</not>
+				<contains string="${sf.test}" substring=" "/>
+			</or>
+			<ac:then>
+				<fail message="-Dsf.test parameter is required and cannot be empty and cannot contain spaces"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.test}" property="sf.test">
+			<atl:uppercase/>
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+	
+
+	<target name="sfenvset">	 
+		<condition property="sf.env.set" else="false">
+			<isset property="sf.env"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.env.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.env destination environment (PROD/DEV/FULL/TRAINING/ETC...):" addProperty="sf.env"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.env}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.env parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.env}" property="sf.env">
+			<atl:uppercase/>
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+
+
+	<target name="sfenvDSTset">	 
+		<condition property="sf.envDST.set" else="false">
+			<isset property="sf.envDST"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.envDST.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.envDST destination environment (PROD/DEV/FULL/TRAINING/ETC...):" addProperty="sf.envDST"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.envDST}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.envDST parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.envDST}" property="sf.envDST">
+			<atl:uppercase/>
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+
+
+
+	<target name="sfenvSRCset">	 
+		<condition property="sf.envSRC.set" else="false">
+			<isset property="sf.envSRC"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.envSRC.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.envSRC source environment (PROD/DEV/FULL/TRAINING/ETC...):" addProperty="sf.envSRC"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.envSRC}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.envSRC parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.envSRC}" property="sf.envSRC">
+			<atl:uppercase/>
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+
+
+
+	<target name="sfusernameset">	 
+		<condition property="sf.username.set" else="false">
+			<isset property="sf.username"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.username.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.username environment username(Xxx@email.com):" addProperty="sf.username"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.username}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.username parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.username}" property="sf.username">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+
+
+	<target name="sfusernameSRCset">	 
+		<condition property="sf.usernameSRC.set" else="false">
+			<isset property="sf.usernameSRC"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.usernameSRC.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.usernameSRC environment username(Xxx@email.com):" addProperty="sf.usernameSRC"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.usernameSRC}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.usernameSRC parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.usernameSRC}" property="sf.usernameSRC">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>	
+
+
+	<target name="sfusernameDSTset">	 
+		<condition property="sf.usernameDST.set" else="false">
+			<isset property="sf.usernameDST"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.usernameDST.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.usernameDST environment username(Xxx@email.com):" addProperty="sf.usernameDST"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.usernameDST}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.usernameDST parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.usernameDST}" property="sf.usernameDST">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+
+
+
+	<target name="sfpasswordset">	 
+		<condition property="sf.password.set" else="false">
+			<isset property="sf.password"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.password.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.password environment password:" addProperty="sf.password"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.password}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.password parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.password}" property="sf.password">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+
+
+	<target name="sfpasswordSRCset">	 
+		<condition property="sf.passwordSRC.set" else="false">
+			<isset property="sf.passwordSRC"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.passwordSRC.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.passwordSRC environment password:" addProperty="sf.passwordSRC"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.passwordSRC}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.passwordSRC parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>
+		<atl:stringutil string="${sf.passwordSRC}" property="sf.passwordSRC">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>	
+
+
+	<target name="sfpasswordDSTset">	 
+		<condition property="sf.passwordDST.set" else="false">
+			<isset property="sf.passwordDST"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.passwordDST.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.passwordDST environment password:" addProperty="sf.passwordDST"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.passwordDST}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.passwordDST parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.passwordDST}" property="sf.passwordDST">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>	
+
+	<target name="sfserverurlset" depends="sfenvset">
+		<ac:if>	 
+			<or>
+				<equals arg1="${sf.env}" arg2="PROD"/>
+			</or>
+			<ac:then>
+				<property name="sf.serverurl" value="https://login.salesforce.com"/>	   
+			</ac:then>
+			<ac:else>
+				<property name="sf.serverurl" value="https://test.salesforce.com"/> 
+			</ac:else>
+		</ac:if>	  
+	</target>
+
+	<target name="computeSFServerURL">
+		<atl:stringutil string="${sfenvparam1}" property="sfenvparam1">
+			<atl:uppercase/>
+			<atl:trim/>
+		</atl:stringutil>       
+		<ac:if>	 
+			<or>
+				<equals arg1="${sfenvparam1}" arg2="PROD"/>
+			</or>
+			<ac:then>
+				<property name="${sfenvparam2}" value="https://login.salesforce.com"/>	   
+			</ac:then>
+			<ac:else>
+				<property name="${sfenvparam2}" value="https://test.salesforce.com"/> 
+			</ac:else>
+		</ac:if>
+	</target>	
+
+	<target name="zipResult">	     
+		<condition property="sf.retrievedZip.set" else="false">
+			<isset property="sf.retrievedZip"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.retrievedZip.set}" arg2="false"/>
+			<ac:then>
+				<input message="Would you like to zip results (y/n)?:" validargs="y,n,Y,N" addProperty="do.zip"/>			  
+			</ac:then>
+		</ac:if>	    
+		<atl:stringutil string="${sf.retrievedZip}" property="sf.retrievedZip">
+			<atl:uppercase/>
+			<atl:trim/>
+		</atl:stringutil>  		
+		<ac:if>	 
+			<or>			
+				<equals arg1="${sf.retrievedZip}" arg2="Y"/>
+				<equals arg1="${sf.retrievedZip}" arg2="YES"/>
+				<equals arg1="${sf.retrievedZip}" arg2="TRUE"/>
+				<equals arg1="${sf.retrievedZip}" arg2="1"/>
+				<equals arg1="${do.zip}" arg2="y"/>
+				<equals arg1="${do.zip}" arg2="Y"/>
+			</or>
+			<ac:then>
+				<zip destfile="${zipPathParam}.zip" basedir="${zipPathParam}"/>	
+				<delete dir="${zipPathParam}" quiet="true"/>			  
+			</ac:then>
+		</ac:if>	   
+	</target>
+
+	<target name="sfretrieveMetadataTypeset">	 
+		<condition property="sf.retrieveMetadataType.set" else="false">
+			<isset property="sf.retrieveMetadataType"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.retrieveMetadataType.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.retrieveMetadataType a valid SDFC metadata type [ex CustomObject,Workflow](case sensitive):" addProperty="sf.retrieveMetadataType"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.retrieveMetadataType}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.retrieveMetadataType parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.retrieveMetadataType}" property="sf.retrieveMetadataType">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>		
+
+	
+	<target name="sflistfolderset">	 
+		<condition property="sf.listfolder.set" else="false">
+			<isset property="sf.listfolder"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.listfolder.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.listfolder a valid SDFC metadata type [ex report Workforce_Data_Analyst](case sensitive):" addProperty="sf.listfolder"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.listfolder}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.listfolder parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.listfolder}" property="sf.listfolder">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>	
+	
+	
+	<target name="zip1set">	 
+		<condition property="sf.zip1.set" else="false">
+			<isset property="sf.zip1"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.zip1.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.zip1 location path and file of first zip:" addProperty="sf.zip1"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.zip1}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.zip1 parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.zip1}" property="sf.zip1">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+
+
+	<target name="zip2set">	 
+		<condition property="sf.zip2.set" else="false">
+			<isset property="sf.zip2"/>
+		</condition>
+		<ac:if>
+			<equals arg1="${sf.zip2.set}" arg2="false"/>
+			<ac:then>
+				<input message="Please enter sf.zip2 location path and file of second zip:" addProperty="sf.zip2"/>
+			</ac:then>		 
+		</ac:if>
+		<ac:if>
+			<not>
+				<length string="${sf.zip2}" trim="true" when="greater" length="0" />
+			</not>
+			<ac:then>
+				<fail message="-Dsf.zip2 parameter is required and cannot be empty"/>
+			</ac:then>
+		</ac:if>		
+		<atl:stringutil string="${sf.zip2}" property="sf.zip2">          
+			<atl:replace regex=" " replacement="" />
+			<atl:trim/>
+		</atl:stringutil>  
+	</target>
+
+		
+    <!-- HELPER - Retrieve the information of all items of a particular metadata type -->
+	<target name="listMetadataHelper"  
+	depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset" >	
+		<mkdir dir="${sf.retrievepath}"/>
+		<sf:listMetadata 
+		    username="${sf.username}" 
+			password="${sf.password}" 
+		    serverurl="${sf.serverurl}" 
+			metadataType="${sf.retrieveMetadataType}" 
+	        resultFilePath="${sf.retrievepath}/${sf.retrieveFile}" />
+	</target>
+
+	<!-- HELPER - Retrieve the information of all items of a particular metadata folder type -->
+	<target name="folderListMetadataHelper"  
+	depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset">	
+		<mkdir dir="${sf.retrievepath}"/>
+		<sf:listMetadata 
+		    username="${sf.username}" 
+			password="${sf.password}" 
+		    serverurl="${sf.serverurl}" 
+			metadataType="${sf.retrieveMetadataType}" 
+			folder="${sf.listfolder}"
+	        resultFilePath="${sf.retrievepath}/${sf.retrieveFile}" />
+	</target>
+	
+	<!-- HELPER - Retrieve the information on all supported metadata type -->
+	<target name="describeMetadataHelper"  depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset" >	
+		<mkdir dir="${sf.retrievepath}"/>
+		<sf:describeMetadata 
+		username="${sf.username}" 
+		password="${sf.password}" 
+		serverurl="${sf.serverurl}"  
+		resultFilePath="${sf.retrievepath}/${sf.retrieveFile}" />
+	</target>	
+	
+	<!-- HELPER - Retrieve the information on all supported metadata type -->
+	<target name="retrieveHelper"  depends="currenttimeset,sfenvset,sfserverurlset,sfusernameset,sfpasswordset">	
+	   <!-- Retrieve the contents into another directory -->
+	    <property name="retrieveWorking" value="${sf.ResultsPath}/working_retrieve"/>
+		<delete includeemptydirs="true" dir="${retrieveWorking}" quiet="true" />
+        <mkdir dir="${retrieveWorking}"/>	   
+		<sf:retrieve username="${sf.username}" password="${sf.password}" serverurl="${sf.serverurl}"
+     	  retrieveTarget="${retrieveWorking}" unpackaged="${sf.packageXML}" 
+          unzip="false"		  />
+		<move todir="${sf.ResultsPath}" includeemptydirs="false"> 
+			<fileset dir="${retrieveWorking}"/>	   
+			<mapper type="glob" from="*.zip" to="${sf.ResultsFile}.zip"/>
+		</move>	
+		<delete includeemptydirs="true" dir="${retrieveWorking}" quiet="true" />
+    </target>	
+	
+	<!-- HELPER - Compare two zip files and generate report -->
+	<target name="compareZipHelper" depends="currenttimeset,zip1set,zip2set" >
+		<script language="javascript">var logger = project.getBuildListeners( ).firstElement( ); logger.setMessageOutputLevel( 1 );</script>	   
+		<zd:zipdiff filename2="${sf.zip1}" 
+			filename1="${sf.zip2}"
+			ignoreTimestamps="true"
+			compareCRCValues="true"
+			destfile="${sf.zipComparePath}/${sf.zipCompareFile}_temp.xml">
+		</zd:zipdiff>
+		<xslt in="${sf.zipComparePath}/${sf.zipCompareFile}_temp.xml" 
+           out="${sf.zipComparePath}/${sf.zipCompareFile}.xml"
+             style="${sflibrary.files}/sforcecomparesort.xslt">
+		</xslt>		
+		<delete file="${sf.zipComparePath}/${sf.zipCompareFile}_temp.xml"/>
+	</target>
+	
+
+
+</project>
